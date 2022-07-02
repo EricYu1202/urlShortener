@@ -1,0 +1,35 @@
+<html>
+<head>
+<title>short url</title>
+<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/css/bootstrap.min.css" integrity="sha384-zCbKRCUGaJDkqS1kPbPd7TveP5iyJE0EjAuZQTgFLD2ylzuqKfdKlfG/eSrtxUkn" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/js/bootstrap.min.js" integrity="sha384-VHvPCCyXqtD5DqJeNxl2dtTyhF78xXNXdkwX1CZeRusQfRKp+tA7hAShOK/B/fQ2" crossorigin="anonymous"></script>
+<!--<script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.10/dist/clipboard.min.js"></script>-->
+<link rel="stylesheet" href="/asset/index.css">
+<script src="/js/clip.js"></script>
+<link rel="shortcut icon" href="#"/>
+</head>
+<body>
+    <div>
+        <section class="h-100 d-flex align-items-center justify-content-center text-center">
+            <div class="container">
+                <div class="row">
+                    <div class="col-sm">
+                        <div class="content">
+                            <h2>URL SHORTENER</h2>
+                        <div class="input-group justify-content-center">
+                            <font class="text-danger font-weight-bold" id="result">
+                                {{.}}
+                            </font>
+                            <button class="btn btn-sm btn-info ml-3" type="button" data-clipboard-text="{{.}}">copy</button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</body>
+</html>
+
+
