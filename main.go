@@ -1,15 +1,32 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
+
+	"github.com/go-redis/redis/v9"
 )
 
 const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const prefix = "http://localhost:8080/r?r="
+
+var ctx = context.Background()
+
+func ExampleClient() *redis.Client {
+	fmt.Println("redis before connect!!!")
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+
+	return rdb
+}
 
 func randomString(n int) string {
 	b := make([]byte, n)
@@ -21,28 +38,61 @@ func randomString(n int) string {
 	return s
 }
 
-func inputUrl(w http.ResponseWriter, r *http.Request) {
+func inputUrl(w http.ResponseWriter, r *http.Request, client *redis.Client) {
 	fmt.Println("method:", r.Method) //print request method
 	if r.Method == "GET" {
 		t, _ := template.ParseFiles("template/index.html")
 		log.Println(t.Execute(w, nil))
 
 	} else if r.Method == "POST" {
+		//cover func
+
 		//邏輯判斷
 		r.ParseForm()
 
 		fmt.Println("url:", template.HTMLEscapeString(r.Form.Get("url"))) //輸出到伺服器端
 
+		outputUrl := "網址錯誤"
+
 		//check url legal
+		u, err := url.ParseRequestURI(r.Form.Get("url"))
+		if err != nil || u.Scheme == "" || u.Host == "" {
+			//panic(err)
+			outputUrl = "網址格式錯誤"
+		} else {
 
-		//check url exits in redis or not
+			for {
+				//create random string
+				outputUrl = randomString(5)
 
-		//create random string
-		outputUrl := randomString(5)
-		//check if it is unique in redis
+				val, err := client.Get(ctx, outputUrl).Result()
 
-		//url concate
-		outputUrl = fmt.Sprintf("%s%s", prefix, outputUrl)
+				if err == redis.Nil {
+					fmt.Printf("%s does not exist\n", outputUrl)
+					//insert value into redis
+					err := client.Set(ctx, outputUrl, u, 0).Err()
+					if err != nil {
+						panic(err)
+					}
+
+					break
+				} else if err != nil {
+					outputUrl = "資料庫錯誤"
+					panic(err)
+
+				} else {
+					//continue
+					fmt.Printf("%s exists", val)
+					continue
+				}
+
+			}
+
+			//url concate
+			outputUrl = fmt.Sprintf("%s%s", prefix, outputUrl)
+
+		}
+
 		//template.HTMLEscape(w, []byte(r.Form.Get("url"))) //輸出到客戶端
 		t, _ := template.ParseFiles("template/result.html")
 		log.Println(t.Execute(w, outputUrl))
@@ -50,19 +100,33 @@ func inputUrl(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func redirect(w http.ResponseWriter, r *http.Request) {
+func redirect(w http.ResponseWriter, r *http.Request, client *redis.Client) {
 
 	if err := r.ParseForm(); err != nil {
 		// handle parse error
 		http.Redirect(w, r, "/", 404)
 	} else {
 		shortUrl := r.Form.Get("r")
-		fmt.Println("short url : ", shortUrl)
+		fmt.Println("query : ", shortUrl)
 		//select url from redis
-		newUrl := "/"
+		newUrl, err := client.Get(ctx, shortUrl).Result()
+		fmt.Println("long url : ", newUrl)
+		if err == redis.Nil {
+			fmt.Println("404  url ")
+			http.Redirect(w, r, "/", 404)
 
-		//redirect
-		http.Redirect(w, r, newUrl, 301)
+		} else if err != nil {
+
+			//panic(err)
+			t, _ := template.ParseFiles("template/result.html")
+			log.Println(t.Execute(w, "資料庫錯誤"))
+
+		} else {
+			//redirect
+			fmt.Println("long url : ", newUrl)
+			http.Redirect(w, r, newUrl, 301)
+		}
+
 	}
 
 }
@@ -70,10 +134,24 @@ func redirect(w http.ResponseWriter, r *http.Request) {
 func main() {
 	fmt.Println("Hello World!")
 
+	//rdb
+	client := ExampleClient()
+
 	//http
-	http.HandleFunc("/index", inputUrl)
-	http.HandleFunc("/", inputUrl)
-	http.HandleFunc("/r", redirect)
+	//http.HandleFunc("/index", inputUrl)
+	http.HandleFunc("/index", func(w http.ResponseWriter, r *http.Request) {
+		inputUrl(w, r, client)
+	})
+
+	//http.HandleFunc("/r", redirect)
+	http.HandleFunc("/r", func(w http.ResponseWriter, r *http.Request) {
+		redirect(w, r, client)
+	})
+
+	//http.HandleFunc("/", inputUrl)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		inputUrl(w, r, client)
+	})
 
 	fileServer := http.FileServer(http.Dir("./asset"))
 	http.Handle("/asset/", http.StripPrefix("/asset/", fileServer))
@@ -81,6 +159,7 @@ func main() {
 	js_fileServer := http.FileServer(http.Dir("./js"))
 	http.Handle("/js/", http.StripPrefix("/js/", js_fileServer))
 
+	//http
 	err := http.ListenAndServe(":8080", nil) //設定監聽的埠
 
 	if err != nil {

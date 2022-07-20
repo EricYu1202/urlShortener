@@ -1,5 +1,5 @@
 $(document).ready(function(){
-    $('button').click(function(){
+    $('#clip').click(function(){
         var tempInput = document.createElement("input");
         tempInput.style = "position: absolute; left: -99999px; top: -99999px";
         tempInput.value = $.trim($("font").text());
@@ -9,6 +9,10 @@ $(document).ready(function(){
         document.body.removeChild(tempInput);
     });
 
-    
+
+    $('#index').click(function(){
+       location.href = "/index";
+    });
+
 
 });
