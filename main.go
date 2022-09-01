@@ -12,7 +12,7 @@ import (
 	"github.com/go-redis/redis/v9"
 )
 
-const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+//const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const prefix = "http://localhost:8080/r?r="
 
 var ctx = context.Background()
@@ -22,7 +22,7 @@ func ExampleClient() *redis.Client {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "", // no password set
-		DB:       0,  // use default DB
+		DB:       0,
 	})
 
 	return rdb
@@ -48,7 +48,10 @@ func inputUrl(w http.ResponseWriter, r *http.Request, client *redis.Client) {
 		//cover func
 
 		//邏輯判斷
-		r.ParseForm()
+		err_parse_form := r.ParseForm()
+		if err_parse_form != nil {
+			fmt.Printf("parse error%s", err_parse_form)
+		}
 
 		fmt.Println("url:", template.HTMLEscapeString(r.Form.Get("url"))) //輸出到伺服器端
 
@@ -153,11 +156,11 @@ func main() {
 		inputUrl(w, r, client)
 	})
 
-	fileServer := http.FileServer(http.Dir("./asset"))
-	http.Handle("/asset/", http.StripPrefix("/asset/", fileServer))
+	file_server := http.FileServer(http.Dir("./asset"))
+	http.Handle("/asset/", http.StripPrefix("/asset/", file_server))
 
-	js_fileServer := http.FileServer(http.Dir("./js"))
-	http.Handle("/js/", http.StripPrefix("/js/", js_fileServer))
+	js_file_server := http.FileServer(http.Dir("./js"))
+	http.Handle("/js/", http.StripPrefix("/js/", js_file_server))
 
 	//http
 	err := http.ListenAndServe(":8080", nil) //設定監聽的埠
